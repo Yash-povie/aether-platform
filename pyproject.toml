@@ -9,5 +9,8 @@ ignore = [
     "E402",
     "F401",
     "F841",
+    "W291",
+    "W292",
+    "W293",
 ]
-per-file-ignores = { "tests/**" = ["F811"], "alembic/**" = ["E402", "F401", "I001", "W291", "W292"] }
+per-file-ignores = { "tests/**" = ["F811"] }
