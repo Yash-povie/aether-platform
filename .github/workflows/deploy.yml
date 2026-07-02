@@ -25,6 +25,7 @@ env:
 
 jobs:
   deploy:
+    if: ${{ secrets.K8S_KUBECONFIG != '' }}
     name: Helm Deploy (${{ github.event.inputs.environment || 'production' }})
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
@@ -106,10 +107,10 @@ jobs:
           INGRESS_HOST="${{ secrets.INGRESS_HOST }}"
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${INGRESS_HOST}/health")
           if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Smoke test failed — /health returned HTTP $HTTP_STATUS"
+            echo "Smoke test failed â€” /health returned HTTP $HTTP_STATUS"
             exit 1
           fi
-          echo "Smoke test passed — /health returned 200"
+          echo "Smoke test passed â€” /health returned 200"
 
       - name: Notify on failure
         if: failure()
