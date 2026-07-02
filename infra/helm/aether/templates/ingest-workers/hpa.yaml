@@ -1,0 +1,49 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: pdf-worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: pdf-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: ingest.pdf
+        queueLength: "5"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: image-worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: image-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: ingest.image
+        queueLength: "5"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: video-worker-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: video-worker
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: ingest.video
+        queueLength: "2"

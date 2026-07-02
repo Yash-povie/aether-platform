@@ -1,0 +1,162 @@
+# ─── Global Image Settings ──────────────────────────────────────────────────
+image:
+  registry: ghcr.io/aether-team
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# ─── Service Account ────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: "aether-sa"
+  annotations: {}
+
+# ─── API Gateway ─────────────────────────────────────────────────────────────
+apiGateway:
+  replicas: 2
+  port: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 3
+    readiness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+# ─── HITL Service ────────────────────────────────────────────────────────────
+hitlService:
+  replicas: 2
+  port: 8001
+  confidenceThreshold: 0.75
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readiness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 5
+
+# ─── Agent Engine ────────────────────────────────────────────────────────────
+agentEngine:
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+# ─── Ingest Workers ──────────────────────────────────────────────────────────
+ingestWorkers:
+  replicas: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+# ─── Audit Service ───────────────────────────────────────────────────────────
+auditService:
+  replicas: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "250m"
+
+# ─── Frontend ────────────────────────────────────────────────────────────────
+frontend:
+  replicas: 2
+  port: 3000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# ─── Ingress ─────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  host: "aether.example.com"
+  tls:
+    enabled: true
+    secretName: aether-tls
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+# ─── ConfigMap (non-secret config) ───────────────────────────────────────────
+config:
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  ENVIRONMENT: "production"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+  OTEL_SERVICE_NAME: "aether"
+  PROMETHEUS_ENABLED: "true"
+  CORS_ORIGINS: "https://aether.example.com"
+  MAX_UPLOAD_SIZE_MB: "500"
+  HITL_CONFIDENCE_THRESHOLD: "0.75"
+  QDRANT_HOST: "qdrant"
+  QDRANT_PORT: "6333"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  MINIO_HOST: "minio"
+  MINIO_PORT: "9000"
+  MINIO_SECURE: "false"
+
+# ─── Secret references (base64 placeholders - REPLACE before deploy) ─────────
+secrets:
+  # Set these via: helm upgrade --set secrets.DB_URL=$(echo -n 'value' | base64)
+  # Or use external-secrets-operator to sync from AWS Secrets Manager
+  DB_URL: "cG9zdGdyZXNxbCthc3luY3BnOi8vYWV0aGVyOmNoYW5nZW1lQHBvc3RncmVzOjU0MzIvYWV0aGVy"   # REPLACE
+  JWT_PRIVATE_KEY: "UkVQTEFDRV9XSVRIX1JFQUxfUFJJVkFURV9LRVk="   # REPLACE
+  JWT_PUBLIC_KEY: "UkVQTEFDRV9XSVRIX1JFQUxfUFVCTElDX0tFWQ=="   # REPLACE
+  ANTHROPIC_API_KEY: "UkVQTEFDRV9XSVRIX1JFQUxfQU5USFJPUElDX0tFWQ=="   # REPLACE
+  GROQ_API_KEY: "UkVQTEFDRV9XSVRIX1JFQUxfR1JPUV9LRVk="   # REPLACE
+  RABBITMQ_URL: "YW1xcDovL2d1ZXN0Omd1ZXN0QHJhYmJpdG1xOjU2NzIv"   # REPLACE
+  MINIO_ACCESS_KEY: "bWluaW9hZG1pbg=="   # REPLACE
+  MINIO_SECRET_KEY: "bWluaW9hZG1pbg=="   # REPLACE
+
+# ─── Observability ───────────────────────────────────────────────────────────
+prometheus:
+  enabled: true
+  scrapeInterval: "15s"
+
+grafana:
+  enabled: true
+  adminPassword: "changeme"   # REPLACE in production

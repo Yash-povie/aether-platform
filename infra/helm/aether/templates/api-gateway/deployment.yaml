@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aether.fullname" . }}-api-gateway
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.apiGateway.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "aether.fullname" . }}-api-gateway
+  template:
+    metadata:
+      labels:
+        app: {{ include "aether.fullname" . }}-api-gateway
+        version: {{ .Values.image.tag | quote }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8000"
+        # Force pod restart on configmap/secret changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "aether.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api-gateway
+          image: "{{ .Values.image.registry }}/api-gateway:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "aether.fullname" . }}-config
+            - secretRef:
+                name: {{ include "aether.fullname" . }}-secrets
+          resources:
+            requests:
+              memory: {{ .Values.apiGateway.resources.requests.memory }}
+              cpu: {{ .Values.apiGateway.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.apiGateway.resources.limits.memory }}
+              cpu: {{ .Values.apiGateway.resources.limits.cpu }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.apiGateway.probes.liveness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.apiGateway.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.apiGateway.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.apiGateway.probes.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.apiGateway.probes.readiness.path }}
+              port: 8000
+            initialDelaySeconds: {{ .Values.apiGateway.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.apiGateway.probes.readiness.periodSeconds }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ include "aether.fullname" . }}-api-gateway

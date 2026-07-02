@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aether.fullname" . }}-agent-engine
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.agentEngine.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "aether.fullname" . }}-agent-engine
+  template:
+    metadata:
+      labels:
+        app: {{ include "aether.fullname" . }}-agent-engine
+        version: {{ .Values.image.tag | quote }}
+      annotations:
+        prometheus.io/scrape: "false"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "aether.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent-engine
+          image: "{{ .Values.image.registry }}/agent-engine:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "aether.fullname" . }}-config
+            - secretRef:
+                name: {{ include "aether.fullname" . }}-secrets
+          resources:
+            requests:
+              memory: {{ .Values.agentEngine.resources.requests.memory }}
+              cpu: {{ .Values.agentEngine.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.agentEngine.resources.limits.memory }}
+              cpu: {{ .Values.agentEngine.resources.limits.cpu }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

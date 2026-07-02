@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+*.pem
+private.pem
+public.pem
+
+# Node
+node_modules/
+.next/
+.vercel/
+out/
+
+# Docker
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+*.key
+*.p12
+secrets/

@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aether.fullname" . }}-hitl-service
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.hitlService.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "aether.fullname" . }}-hitl-service
+  template:
+    metadata:
+      labels:
+        app: {{ include "aether.fullname" . }}-hitl-service
+        version: {{ .Values.image.tag | quote }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8001"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "aether.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: hitl-service
+          image: "{{ .Values.image.registry }}/hitl-service:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "aether.fullname" . }}-config
+            - secretRef:
+                name: {{ include "aether.fullname" . }}-secrets
+          resources:
+            requests:
+              memory: {{ .Values.hitlService.resources.requests.memory }}
+              cpu: {{ .Values.hitlService.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.hitlService.resources.limits.memory }}
+              cpu: {{ .Values.hitlService.resources.limits.cpu }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.hitlService.probes.liveness.path }}
+              port: 8001
+            initialDelaySeconds: {{ .Values.hitlService.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.hitlService.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.hitlService.probes.readiness.path }}
+              port: 8001
+            initialDelaySeconds: {{ .Values.hitlService.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.hitlService.probes.readiness.periodSeconds }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ include "aether.fullname" . }}-hitl-service

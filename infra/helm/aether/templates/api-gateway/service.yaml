@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aether.fullname" . }}-api-gateway
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ include "aether.fullname" . }}-api-gateway
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  type: ClusterIP

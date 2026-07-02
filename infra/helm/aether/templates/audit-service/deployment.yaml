@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aether.fullname" . }}-audit-service
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.auditService.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "aether.fullname" . }}-audit-service
+  template:
+    metadata:
+      labels:
+        app: {{ include "aether.fullname" . }}-audit-service
+        version: {{ .Values.image.tag | quote }}
+      annotations:
+        prometheus.io/scrape: "false"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "aether.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: audit-service
+          image: "{{ .Values.image.registry }}/audit-service:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "aether.fullname" . }}-config
+            - secretRef:
+                name: {{ include "aether.fullname" . }}-secrets
+          resources:
+            requests:
+              memory: {{ .Values.auditService.resources.requests.memory }}
+              cpu: {{ .Values.auditService.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.auditService.resources.limits.memory }}
+              cpu: {{ .Values.auditService.resources.limits.cpu }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

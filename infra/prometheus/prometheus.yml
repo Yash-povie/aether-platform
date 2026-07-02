@@ -1,0 +1,84 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: production
+    platform: aether
+
+# Alertmanager (wire up when ready)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Rule files
+# rule_files:
+#   - "rules/*.yml"
+
+scrape_configs:
+
+  # ── Aether Services ───────────────────────────────────────────────────────
+
+  - job_name: 'api-gateway'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['api-gateway:8000']
+        labels:
+          service: api-gateway
+
+  - job_name: 'hitl-service'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['hitl-service:8001']
+        labels:
+          service: hitl-service
+
+  - job_name: 'agent-engine'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['agent-engine:8002']
+        labels:
+          service: agent-engine
+
+  - job_name: 'audit-service'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['audit-service:8003']
+        labels:
+          service: audit-service
+
+  # ── Infrastructure ────────────────────────────────────────────────────────
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'rabbitmq'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: rabbitmq
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: postgres
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: redis
+
+  - job_name: 'minio'
+    metrics_path: '/minio/v2/metrics/cluster'
+    static_configs:
+      - targets: ['minio:9000']
+        labels:
+          service: minio

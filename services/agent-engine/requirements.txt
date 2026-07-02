@@ -1,0 +1,16 @@
+langgraph==0.2.73
+langchain==0.3.18
+langchain-core==0.3.31
+langchain-groq==0.2.4
+langchain-anthropic==0.3.8
+langchain-community==0.3.18
+sqlalchemy[asyncio]==2.0.37
+asyncpg==0.30.0
+psycopg[binary,pool]==3.2.4
+aio-pika==9.5.5
+minio==7.2.15
+pydantic==2.10.5
+python-dotenv==1.0.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0

@@ -1,0 +1,118 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: 'Image tag to deploy (defaults to commit SHA)'
+        required: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/aether
+  HELM_CHART_PATH: infra/helm/aether
+  NAMESPACE: aether-production
+
+jobs:
+  deploy:
+    name: Helm Deploy (${{ github.event.inputs.environment || 'production' }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    concurrency:
+      group: deploy-${{ github.event.inputs.environment || 'production' }}
+      cancel-in-progress: false   # never cancel in-flight deploys
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.15.0'
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Helm lint
+        run: helm lint ${{ env.HELM_CHART_PATH }}
+
+      - name: Helm diff (dry-run)
+        run: |
+          helm upgrade aether ${{ env.HELM_CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --dry-run \
+            --set image.tag=${{ steps.tag.outputs.tag }} \
+            --set image.registry=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }} \
+            --set ingress.host=${{ secrets.INGRESS_HOST }} \
+            --set secrets.DB_URL=${{ secrets.DB_URL_B64 }} \
+            --set secrets.JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY_B64 }} \
+            --set secrets.JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY_B64 }} \
+            --set secrets.ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY_B64 }} \
+            --set secrets.GROQ_API_KEY=${{ secrets.GROQ_API_KEY_B64 }} \
+            --set secrets.RABBITMQ_URL=${{ secrets.RABBITMQ_URL_B64 }} \
+            --set secrets.MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY_B64 }} \
+            --set secrets.MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY_B64 }}
+
+      - name: Helm upgrade / install
+        run: |
+          helm upgrade --install aether ${{ env.HELM_CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --create-namespace \
+            --atomic \
+            --timeout 10m \
+            --wait \
+            --set image.tag=${{ steps.tag.outputs.tag }} \
+            --set image.registry=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }} \
+            --set ingress.host=${{ secrets.INGRESS_HOST }} \
+            --set secrets.DB_URL=${{ secrets.DB_URL_B64 }} \
+            --set secrets.JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY_B64 }} \
+            --set secrets.JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY_B64 }} \
+            --set secrets.ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY_B64 }} \
+            --set secrets.GROQ_API_KEY=${{ secrets.GROQ_API_KEY_B64 }} \
+            --set secrets.RABBITMQ_URL=${{ secrets.RABBITMQ_URL_B64 }} \
+            --set secrets.MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY_B64 }} \
+            --set secrets.MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY_B64 }}
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/aether-aether-api-gateway -n ${{ env.NAMESPACE }} --timeout=5m
+          kubectl rollout status deployment/aether-aether-hitl-service -n ${{ env.NAMESPACE }} --timeout=5m
+
+      - name: Post-deploy smoke test
+        run: |
+          INGRESS_HOST="${{ secrets.INGRESS_HOST }}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${INGRESS_HOST}/health")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Smoke test failed — /health returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo "Smoke test passed — /health returned 200"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Deploy failed. Helm rollback may be triggered manually:"
+          echo "  helm rollback aether -n ${{ env.NAMESPACE }}"

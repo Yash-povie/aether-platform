@@ -1,0 +1,13 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+redis[asyncio]==5.2.1
+broadcaster[redis]==0.3.1
+sqlalchemy[asyncio]==2.0.37
+asyncpg==0.30.0
+pydantic==2.10.5
+python-jose[cryptography]==3.3.0
+python-dotenv==1.0.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp-proto-grpc==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0

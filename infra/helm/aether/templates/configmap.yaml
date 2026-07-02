@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aether.fullname" . }}-config
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+data:
+  LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
+  LOG_FORMAT: {{ .Values.config.LOG_FORMAT | quote }}
+  ENVIRONMENT: {{ .Values.config.ENVIRONMENT | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.OTEL_SERVICE_NAME | quote }}
+  PROMETHEUS_ENABLED: {{ .Values.config.PROMETHEUS_ENABLED | quote }}
+  CORS_ORIGINS: {{ .Values.config.CORS_ORIGINS | quote }}
+  MAX_UPLOAD_SIZE_MB: {{ .Values.config.MAX_UPLOAD_SIZE_MB | quote }}
+  HITL_CONFIDENCE_THRESHOLD: {{ .Values.config.HITL_CONFIDENCE_THRESHOLD | quote }}
+  QDRANT_HOST: {{ .Values.config.QDRANT_HOST | quote }}
+  QDRANT_PORT: {{ .Values.config.QDRANT_PORT | quote }}
+  RABBITMQ_HOST: {{ .Values.config.RABBITMQ_HOST | quote }}
+  RABBITMQ_PORT: {{ .Values.config.RABBITMQ_PORT | quote }}
+  REDIS_HOST: {{ .Values.config.REDIS_HOST | quote }}
+  REDIS_PORT: {{ .Values.config.REDIS_PORT | quote }}
+  MINIO_HOST: {{ .Values.config.MINIO_HOST | quote }}
+  MINIO_PORT: {{ .Values.config.MINIO_PORT | quote }}
+  MINIO_SECURE: {{ .Values.config.MINIO_SECURE | quote }}

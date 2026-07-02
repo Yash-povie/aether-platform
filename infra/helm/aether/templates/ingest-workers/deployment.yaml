@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aether.fullname" . }}-ingest-workers
+  labels:
+    {{- include "aether.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.ingestWorkers.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "aether.fullname" . }}-ingest-workers
+  template:
+    metadata:
+      labels:
+        app: {{ include "aether.fullname" . }}-ingest-workers
+        version: {{ .Values.image.tag | quote }}
+      annotations:
+        prometheus.io/scrape: "false"
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "aether.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ingest-workers
+          image: "{{ .Values.image.registry }}/ingest-workers:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "aether.fullname" . }}-config
+            - secretRef:
+                name: {{ include "aether.fullname" . }}-secrets
+          resources:
+            requests:
+              memory: {{ .Values.ingestWorkers.resources.requests.memory }}
+              cpu: {{ .Values.ingestWorkers.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.ingestWorkers.resources.limits.memory }}
+              cpu: {{ .Values.ingestWorkers.resources.limits.cpu }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

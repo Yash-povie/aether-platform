@@ -1,0 +1,7 @@
+aio-pika==9.5.5
+sqlalchemy[asyncio]==2.0.37
+asyncpg==0.30.0
+pydantic==2.10.5
+python-dotenv==1.0.1
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
